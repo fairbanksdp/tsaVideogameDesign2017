@@ -3,5 +3,6 @@ module ZOrder
 	Platform = 1
 	Player = 2
 	UI = 3
-	Menu = 4
+	TitleScreen = 4
+	Menu = 5
 end
