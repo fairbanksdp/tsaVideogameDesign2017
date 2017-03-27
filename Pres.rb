@@ -1,7 +1,14 @@
 class Pres
-  attr_accessor :buttonLock, :rigidBody, :shape, :hitBoxes, :dir, :attackLock, :curAnim, :anims, :stats
+  attr_accessor :buttonLock, :rigidBody, :shape, :hitBoxes, :dir, :attackLock, :curAnim, :anims, :stats, :sounds
   def initialize(name, isFirst, window)
     @window = window
+		@isFirst = isFirst
+
+		@sounds = {
+			"top"=>Gosu::Sample.new("media/#{name}top.wav"),
+			"mid"=>Gosu::Sample.new("media/#{name}bot.wav"),
+			"bot"=>Gosu::Sample.new("media/#{name}mid.wav")
+		}
 		
     @imgStill = Gosu::Image.new("media/#{name}Still.bmp")
     @spriteWidth = @imgStill.width
@@ -62,8 +69,11 @@ class Pres
       @animSizes["#{name}"]["reelback"]["y"]
     )
     #@animFrameDist = {"jump"=>0,"idle" HEIGHT/@image.height
-		@scaleX = @imgStill.width/105.to_f
-		@scaleY = @imgStill.height/315.to_f
+		
+		#@scaleX = @imgStill.width/105.to_f
+		#@scaleY = @imgStill.height/315.to_f
+		@scaleX = @imgStill.width/@animSizes["#{name}"]["jump"]["x"].to_f
+		@scaleY = @imgStill.height/@animSizes["#{name}"]["jump"]["y"].to_f
    
     setAnimTo("idle")
     
@@ -99,8 +109,10 @@ class Pres
       "topLeft"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(@spriteWidth+1,-1)),
       "midRight"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(-@spriteWidth-1,(@spriteHeight/3.0)-1)),
       "midLeft"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(@spriteWidth+1,(@spriteHeight/3.0)-1)),
-      "botRight"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(-@spriteWidth-1,(2*@spriteHeight/3.0)-1)),
-      "botLeft"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(@spriteWidth+1,(2*@spriteHeight/3.0)-1))
+      "botRight"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(-@spriteWidth-1,(@spriteHeight/3.0)-1)),
+      "botLeft"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(@spriteWidth+1,(@spriteHeight/3.0)-1)),
+      #"botRight"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(-@spriteWidth-1,(2*@spriteHeight/3.0)-1)),
+      #"botLeft"=>CP::Shape::Poly.new(@rigidBody, verts, vec2(@spriteWidth+1,(2*@spriteHeight/3.0)-1))
     }
     @hitBoxes.each_value {|n|n.collision_type = :hitBox}
     @hitBoxes.each_value {|n|n.sensor = true}
@@ -115,8 +127,12 @@ class Pres
     @window.space.add_body(@rigidBody)
     @window.space.add_shape(@shape)
     @hitBoxes.each_value {|n| @window.space.add_shape(n)}
-		@isFirst = isFirst
-    if isFirst
+		
+		self.reset
+  end
+     
+	def reset
+		if @isFirst
       @rigidBody.p.x = 150
       @rigidBody.p.y = 200
       @dir = -1
@@ -125,8 +141,10 @@ class Pres
       @rigidBody.p.y = 200
       @dir = 1
     end
-  end
-     
+		self.reset_forces
+		@stats["health"] = 100
+	end 
+
   def run(dir)
     if dir == 0
       @rigidBody.v.x -= @rigidBody.v.x/10
@@ -167,15 +185,11 @@ class Pres
   def jump
     @buttonLock["jump"] = true
     if @onGround
-      #@rigidBody.apply_impulse(vec2(0,@stats["jumpH"]), vec2(0,0))
     	setAnimTo("jump")
     elsif @secondJump
       @secondJump = false 
-      #@rigidBody.apply_impulse(vec2(0,@stats["jumpH"]), vec2(0,0))
     	setAnimTo("jump")
     end
-    #@curAnim = @anims["jump"]
-    #@curFrame = @curAnim[0]
   end
   def dive
     if !@onGround && @curAnim == @anims["jump"]
@@ -187,20 +201,24 @@ class Pres
 	def top
     @buttonLock["top"] = true
 		setAnimTo("top")
+    @sounds["top"].play(0.3)
 	end
 	def mid
     @buttonLock["mid"] = true
 		setAnimTo("mid")
+    @sounds["mid"].play(0.3)
 	end
 	def bot
     @buttonLock["bot"] = true
     setAnimTo("bot")
+    @sounds["bot"].play(0.3)
 	end
 
   def update
     if curAnim?("reelback")
-			cyclesPerFrame = 4
-			frameTick(cyclesPerFrame)
+			#cyclesPerFrame = 4
+			#frameTick(cyclesPerFrame)
+			animate(0.25)
     elsif @curAnim == @anims["top"]
 			cyclesPerFrame = 2
 			frameTick(cyclesPerFrame)
@@ -216,7 +234,8 @@ class Pres
     elsif @curAnim == @anims["jump"]
 			cyclesPerFrame = 4
 			if @framePos < 3
-				frameTick(cyclesPerFrame)
+				#frameTick(cyclesPerFrame)
+				animate(0.3)
 			elsif @framePos.to_i == 3 && @onGround
       	@rigidBody.apply_impulse(vec2(0,@stats["jumpH"]), vec2(0,0))
       	@onGround = false
@@ -325,9 +344,6 @@ class Pres
     end
 		return frame
   end
-	def framePos(speed)
-    return @framePos.to_i
-	end
 	def setAnimTo(anim)
 		@framePos = 0 
 		@curAnim = @anims[anim]
